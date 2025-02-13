@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>ParticleDisplay</title>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device.width,initial-scale=1">
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
+        <style>
+            body{
+                background-color:#171615;
+                color:#FFF;
+                font-family: "DotGothic16", serif;
+                font-style: normal;
+                text-align:center;
+            }
+            canvas{
+                background-color:rgba(38,36,35,.9);
+                border:#FFF dashed;
+            }
+            input[type="number"]{
+                width:80px;
+            }
+            input[type="file"]::-webkit-file-upload-button{
+                background-color:#3c8527;
+                color:#FFF;
+                padding:2px 3px;
+                border:none;
+                border-radius:2px;
+                text-align:center;
+                transition:background-color 0.05s;
+            }
+            input[type="file"]::-webkit-file-upload-button:hover{
+                background-color:#52a535;
+                color:#FFF;
+                padding:2px 3px;
+                border:none;
+                border-radius:2px;
+                text-align:center
+            }
+            .inputs{
+                display:flex;
+                justify-content:center;
+            }
+            .input{
+                margin:5px;
+                text-align:right;
+            }
+            .download{
+                background-color:#3c8527;
+                color:#FFF;
+                padding:4px 5px;
+                border:none;
+                border-radius:2px;
+                text-align:center;
+                transition:background-color 0.05s;
+            }
+            .download:hover{
+                background-color:#52a535;
+                color:#FFF;
+                padding:4px 5px;
+                border:none;
+                border-radius:2px;
+                text-align:center
+            }
+        </style>
+    </head>
+    <body>
+        <h1>ParticleDisplay</h1>
+        <canvas width="450" height="450" id="canvas"></canvas><br>
+        <input type="file" id="fileInput"><button class="download" id="download">Download</button><br>
+        <div class="inputs">
+            <div class="input">
+                <span>Width : </span><br>
+                <span>PixelsWidth : </span><br>
+                <span>ParticleSize : </span><br>
+            </div>
+            <div class="input">
+                <input type="number" min="1" max="512" step="1" value="32" id="width"><br>
+                <input type="number" min="0.01" max="1" step="0.01" value="0.1" id="pixelsWidth"><br>
+                <input type="number" min="0.1" max="4" step="0.1" value="0.5" id="particleSize"><br>
+            </div>
+            <div class="input">
+                <span>Height : </span><br>
+                <span>PixelsHeight : </span><br>
+            </div>
+            <div class="input">
+                <input type="number" min="1" max="512" step="1" value="32" id="height"><br>
+                <input type="number" min="0.01" max="1" step="0.01" value="0.1" id="pixelsHeight"><br>
+            </div>
+        </div>
+        <div class="inputs">
+            <div class="input">
+                <span>Offset : </span><br>
+            </div>
+            <div>
+                <input type="number" min="0" max="128" step="0.01" value="0" id="offsetX"><span>,</span><br>
+            </div>
+            <div>
+                <input type="number" min="0" max="128" step="0.01" value="0" id="offsetY"><span>,</span><br>
+            </div>
+            <div>
+                <input type="number" min="0" max="128" step="0.01" value="0" id="offsetZ"><br>
+            </div>
+        </div>
+        <script>
+            class Particle{
+                constructor(canvas){
+                    this.command="";
+                    this.canvas=canvas;
+                    this.editorCanvas=document.createElement("canvas");
+                    this.image=new Image();
+                    this.ctx=this.canvas.getContext("2d");
+                    this.editor=this.editorCanvas.getContext("2d");
+                };
+                importImage(path){
+                    this.image.src=path;
+                    const maxSize=450;
+                    this.ctx.clearRect(0,0,this.canvas.width,this.canvas.height);
+                    this.editor.clearRect(0,0,this.editorCanvas.width,this.editorCanvas.height);
+                    this.image.onload=()=>{
+                        this.canvas.width=this.image.width;
+                        this.canvas.height=this.image.height;
+                        this.editorCanvas.width=this.image.width;
+                        this.editorCanvas.height=this.image.height;
+                        const scale=Math.min((maxSize/this.canvas.width),(maxSize/this.canvas.height));
+                        this.canvas.style.width=`${parseInt(scale*this.canvas.width)}px`;
+                        this.canvas.style.height=`${parseInt(scale*this.canvas.height)}px`;
+                        this.ctx.drawImage(this.image,0,0);
+                        this.editor.drawImage(this.image,0,0);
+                        this.resize();
+                    };
+                };
+                resize(){
+                    this.editorCanvas.width=parseInt(widthInput.value);
+                    this.editorCanvas.height=parseInt(heightInput.value);
+                    this.editor.drawImage(this.image,0,0,parseInt(widthInput.value),parseInt(heightInput.value));
+                };
+                makeCommand(){
+                    this.command="";
+                    const pixels=this.editor.getImageData(0,0,this.editorCanvas.width,this.editorCanvas.height).data;
+                    for (let i=0;i<this.editorCanvas.height;i++){
+                        for (let j=0;j<this.editorCanvas.width;j++){
+                            const index=(i*this.editorCanvas.width+j)*4
+                            if (pixels[index+3] > 0){
+                                this.command=this.command+`particle dust{color:[${(pixels[index]/255).toPrecision(4)},${(pixels[index+1]/255).toPrecision(4)},${(pixels[index+2]/255).toPrecision(4)}],scale:${parseFloat(particleSizeInput.value).toPrecision(4)}} ^${(j*parseFloat(pixelsWidthInput.value)+parseFloat(offsetXInput.value)).toPrecision(4)} ^${(this.editorCanvas.height*parseFloat(pixelsHeightInput.value)-i*parseFloat(pixelsHeightInput.value)+parseFloat(offsetYInput.value)).toPrecision(4)} ^${parseFloat(offsetZInput.value).toPrecision(4)}\n`
+                            };
+                        };
+                    };
+                };
+                saveCommand(){
+                    const blob=new Blob([this.command],{type:"text/plain"});
+                    const link=document.createElement("a");
+                    link.href=URL.createObjectURL(blob);
+                    link.download="particle.mcfunction";
+                    link.click();
+                    URL.revokeObjectURL(link.href);
+                };
+            };
+            const canvas=document.getElementById("canvas");
+            const fileInput=document.getElementById("fileInput");
+            const widthInput=document.getElementById("width");
+            const heightInput=document.getElementById("height");
+            const pixelsWidthInput=document.getElementById("pixelsWidth");
+            const pixelsHeightInput=document.getElementById("pixelsHeight");
+            const particleSizeInput=document.getElementById("particleSize");
+            const offsetXInput=document.getElementById("offsetX");
+            const offsetYInput=document.getElementById("offsetY");
+            const offsetZInput=document.getElementById("offsetZ");
+            const downloadButton=document.getElementById("download");
+            const particle=new Particle(canvas);
+            fileInput.addEventListener("change",()=>{
+                const file=fileInput.files[0];
+                if (file){
+                    const reader=new FileReader();
+                    reader.onload=function(event){
+                        particle.importImage(event.target.result);
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+            widthInput.addEventListener("change",()=>{
+                particle.resize();
+            });
+            heightInput.addEventListener("change",()=>{
+                particle.resize();
+            });
+            downloadButton.addEventListener("click",()=>{
+                particle.resize();
+                particle.makeCommand();
+                particle.saveCommand();
+            });
+            canvas.addEventListener("click",()=>{if (particle.image.src == ""){fileInput.click()}})
+        </script>
+    </body>
+</html>
